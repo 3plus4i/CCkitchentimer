@@ -29,7 +29,7 @@ if(CCkt === undefined) var CCkt = {
         Game.registerHook('reincarnate', CCkt.reincarnate);
         CCkt.checkSave(1);
         // For testing. Don't forget to remove!
-        CCkt.data.ascensions = [[1, 440, 85184341083213078917, 920808556, 97734430], [2, 2983, 26543596087268840714913, 79089653597, 66299844], [4, 'Born again', 1099749010101, 7075568, 7075568]];
+        //CCkt.data.ascensions = [[1, 440, 85184341083213078917, 920808556, 97734430], [2, 2983, 26543596087268840714913, 79089653597, 66299844], [4, 'Born again', 1099749010101, 7075568, 7075568]];
     },
     lastT: Date.now(),
     logOpen: 0,
@@ -125,7 +125,6 @@ CCkt.save = function(){
     CCkt.data.totalT = t - CCkt.lastT + CCkt.data.totalT;
     CCkt.data.curAscension += t - CCkt.lastT;
     CCkt.lastT = t;
-    console.log('saving: '+JSON.stringify(CCkt.data));
     return JSON.stringify(CCkt.data);
 }
 
