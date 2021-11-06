@@ -2,20 +2,25 @@ if(CCkt === undefined) var CCkt = {
     init:function(){
         // the game doesn't trigger the load method if the loaded save has no data stored for the mod
         // we need to know though if a save was loaded to reset data, so we have to change the function
-        Game.loadModData = new Function('return '+Game.loadModData.toString().slice(0, -1)+'CCkt.checkSave(0);}');
+        //Game.loadModData = new Function('return '+Game.loadModData.toString().slice(0, -1)+'CCkt.checkSave(0);}');
+        Game.loadModData = function() {
+            for (var i in Game.modSaveData) {
+                if (Game.mods[i] && Game.mods[i]['load']) Game.mods[i]['load'](Game.modSaveData[i]);
+            }
+            CCkt.checkSave(0);
+        }
         
         // add css for the ascension log
         var css = document.createElement('style');
         css.innerHTML = `
-            #CCktTotalTime{font-weight: bold}
-            .CCkt.ascension_log {text-align: right; width: 100%}
-            th .CCkt.ascension_log {
+            #CCktTotalTime {font-weight: bold}
+            .CCkt.ascension_log {text-align: right; width: 100%; padding: 3px}
+            .CCkt.ascension_log th {
                 border-collapse: collapse;
                 border-bottom: thin solid white;
                 font-weight: bold
             }
-            td .CCkt.ascension_log {padding-left: 5px; padding-right: 5px;}
-            .CCkt.ascension_log tr:nth-child(even) {background: rgba(0,0,0,0.3);}
+            .CCkt.ascension_log tr:nth-child(2n+3) {background: rgba(0,0,0,0.3);}
             
         `
         document.head.appendChild(css);
@@ -23,6 +28,8 @@ if(CCkt === undefined) var CCkt = {
         Game.registerHook('reset', CCkt.reset);
         Game.registerHook('reincarnate', CCkt.reincarnate);
         CCkt.checkSave(1);
+        // For testing. Don't forget to remove!
+        CCkt.data.ascensions = [[1, 440, 85184341083213078917, 920808556, 97734430], [2, 2983, 26543596087268840714913, 79089653597, 66299844], [4, 'Born again', 1099749010101, 7075568, 7075568]];
     },
     lastT: Date.now(),
     logOpen: 0,
@@ -118,17 +125,18 @@ CCkt.save = function(){
     CCkt.data.totalT = t - CCkt.lastT + CCkt.data.totalT;
     CCkt.data.curAscension += t - CCkt.lastT;
     CCkt.lastT = t;
+    console.log('saving: '+JSON.stringify(CCkt.data));
     return JSON.stringify(CCkt.data);
 }
 
 CCkt.load = function(save){
-    //console.log(save);
+    console.log('loading: '+save);
     CCkt.data = JSON.parse(save);
 }
 
 CCkt.checkSave = function(init){
     var t = Date.now()
-    
+    console.log('checking save data ...');
     CCkt.mode = Game.ascensionMode;
     CCkt.legacyCookies = Game.cookiesReset;
     CCkt.startT = Game.startDate;
@@ -143,15 +151,14 @@ CCkt.checkSave = function(init){
             CCkt.data.curAscension = t - CCkt.lastT;
         }
         CCkt.lastT = t;
-        
-        // For testing. Don't forget to remove!
-        CCkt.data.ascensions = [[1, 440, 85184341083213078917, 920808556, 97734430], [2, 2983, 26543596087268840714913, 79089653597, 66299844], [4, 'Born again', 1099749010101, 7075568, 7075568]];
+        console.log('No mod data found. CCkt.data.ascensions.length = '+CCkt.data.ascensions.length);
     } else if (init) {
         CCkt.load(Game.modSaveData.CCkt);
         CCkt.data.totalT = t - CCkt.lastT;
         CCkt.data.curAscension = t - CCkt.lastT;
         CCkt.lastT = t;
-    }
+    } else console.log('mod data found, should load');
+    console.log('check finished');
 }
 
 CCkt.reset = function(h){
