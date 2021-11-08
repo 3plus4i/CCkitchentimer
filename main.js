@@ -13,13 +13,15 @@ if(CCkt === undefined) var CCkt = {
         // add css for the ascension log
         var css = document.createElement('style');
         css.innerHTML = `
+            #CCktLogButton {font-weight: bold; margin: 5px}
             #CCktTotalTime {font-weight: bold}
-            .CCkt.ascension_log {text-align: right; width: 100%; padding: 3px}
+            #CCktLogTable {text-align: right; width: 100%; margin: 10px 0}
             .CCkt.ascension_log th {
                 border-collapse: collapse;
-                border-bottom: thin solid white;
+                border-bottom: thin solid rgb(204, 204, 204);
                 font-weight: bold
             }
+            .CCkt.ascension_log th, .CCkt.ascension_log td {padding: 3px}
             .CCkt.ascension_log tr:nth-child(2n+3) {background: rgba(0,0,0,0.3);}
             
         `
@@ -47,7 +49,7 @@ CCkt.launch = function(){
     CCkt.isLoaded = 1;
     Game.registerMod("CCkt", CCkt);
     Game.customStatsMenu.push(function(){
-        CCSE.AppendStatsGeneral('<a class="option" onclick="CCkt.showLog()">Ascension log</a>');
+        CCSE.AppendStatsGeneral('<div class="listing" id="CCktLogButton"><a class="option CCkt" onclick="CCkt.showLog()">Ascension log</a></div>');
     });
 }
  
@@ -55,7 +57,7 @@ CCkt.showLog = function(){
     // creates the prompt for the ascension log
     var str = '<h3>Ascension log</h3><div class="block">total play time: <span id="CCktTotalTime">'
         + CCkt.formatTime(Date.now() - CCkt.lastT + CCkt.data.totalT)
-        + '</span></div><div><table class="CCkt ascension_log"><tr><th>Ascension</th><th>HC</th><th>Cookies Baked</th><th>Duration</th><th>Playtime</th></tr>';
+        + '</span></div><div><table class="CCkt ascension_log" id="CCktLogTable"><tr><th>Ascension</th><th>HC</th><th>Cookies Baked</th><th>Duration</th><th>Playtime</th></tr>';
     if (CCkt.data.ascensions.length) {
         for (i of CCkt.data.ascensions) {
             str += '<tr><td>' + i[0] + '</td><td>' + (typeof(i[1])=='string'?i[1]:'+'+Beautify(i[1])) + '</td><td>'
@@ -129,13 +131,12 @@ CCkt.save = function(){
 }
 
 CCkt.load = function(save){
-    console.log('loading: '+save);
     CCkt.data = JSON.parse(save);
 }
 
 CCkt.checkSave = function(init){
     var t = Date.now()
-    console.log('checking save data ...');
+    
     CCkt.mode = Game.ascensionMode;
     CCkt.legacyCookies = Game.cookiesReset;
     CCkt.startT = Game.startDate;
@@ -150,14 +151,12 @@ CCkt.checkSave = function(init){
             CCkt.data.curAscension = t - CCkt.lastT;
         }
         CCkt.lastT = t;
-        console.log('No mod data found. CCkt.data.ascensions.length = '+CCkt.data.ascensions.length);
     } else if (init) {
         CCkt.load(Game.modSaveData.CCkt);
         CCkt.data.totalT = t - CCkt.lastT;
         CCkt.data.curAscension = t - CCkt.lastT;
         CCkt.lastT = t;
-    } else console.log('mod data found, should load');
-    console.log('check finished');
+    }
 }
 
 CCkt.reset = function(h){

@@ -1,0 +1,11 @@
+{
+	"Name":"CC Kitchen Timer",
+	"ID":"CCkt",
+	"Description":"tracks actual play time along other stats for each ascension in a log",
+	"ModVersion": 2.031,
+	"GameVersion": 2.042,
+	"Date":"07/11/2021",
+	"Dependencies":["CCSE"],
+	"Disabled": 0,
+	"AllowSteamAchievs": 1
+}
