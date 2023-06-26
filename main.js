@@ -1,21 +1,20 @@
 if(CCkt === undefined) var CCkt = {
     init:function(){
-        // the game doesn't trigger the load method if the loaded save has no data stored for the mod
-        // we need to know though if a save was loaded to reset data, so we have to change the function
-        //Game.loadModData = new Function('return '+Game.loadModData.toString().slice(0, -1)+'CCkt.checkSave(0);}');
-        Game.loadModData = function() {
-            for (var i in Game.modSaveData) {
-                if (Game.mods[i] && Game.mods[i]['load']) Game.mods[i]['load'](Game.modSaveData[i]);
-            }
-            CCkt.checkSave(0);
-        }
-        
         // add css for the ascension log
         var css = document.createElement('style');
         css.innerHTML = `
             #CCktLogButton {font-weight: bold; margin: 5px}
             #CCktTotalTime {font-weight: bold}
-            #CCktLogTable {text-align: right; width: 100%; margin: 10px 0}
+            #CCktTableBox {
+                max-height: 25em;
+                width: 510px;
+                overflow-y: auto
+            }
+            #CCktLogTable {
+                text-align: right;
+                width: 480px;
+                margin: 10px 0px 10px 5px
+            }
             .CCkt.ascension_log th {
                 border-collapse: collapse;
                 border-bottom: thin solid rgb(204, 204, 204);
@@ -27,37 +26,36 @@ if(CCkt === undefined) var CCkt = {
         `
         document.head.appendChild(css);
         
+        // add button for the ascension log to Game.UpdateMenu()
+        Game.UpdateMenu = new Function(Game.UpdateMenu.toString().slice(11).replace('giftStr+\'</div>\':\'\')', 'giftStr+\'</div>\':\'\')+\'<div class="listing" id="CCktLogButton"><a class="option CCkt" onclick="CCkt.showLog()">Ascension log</a></div>\''));
+        
         Game.registerHook('reset', CCkt.reset);
         Game.registerHook('reincarnate', CCkt.reincarnate);
-        CCkt.checkSave(1);
-        // For testing. Don't forget to remove!
-        //CCkt.data.ascensions = [[1, 440, 85184341083213078917, 920808556, 97734430], [2, 2983, 26543596087268840714913, 79089653597, 66299844], [4, 'Born again', 1099749010101, 7075568, 7075568]];
+        setInterval(CCkt.checkAscensionStatus, 5000);
+        CCkt.isLoaded = 1;
+        
+        if (Game.modSaveData.CCkt) CCkt.load(Game.modSaveData.CCkt);
+        else CCkt.clearData();
     },
-    lastT: Date.now(),
+    isLoaded: 0,
+    lastT: Date.now(), // timestamp for the last data update
     logOpen: 0,
+    isAscending: 0,
     data: {
         sVersion: 1,
-        totalT: 0,
+        f: 0, // mod data carries over if you import a save that has no data stored for this mod, so we use Game.startDate as a fingerprint
+        totalT: 0, // time the game has been running since start
         ascensions: [], //log of previous ascensions
         curAscension: 0, //time played this ascension
         resets: 1 //technically this is the number of the current ascension, not number of ascensions done
     }
-}
-if(typeof CCSE == 'undefined') Game.LoadMod('https://klattmose.github.io/CookieClicker/CCSE.js');
-
-CCkt.launch = function(){
-    CCkt.isLoaded = 1;
-    Game.registerMod("CCkt", CCkt);
-    Game.customStatsMenu.push(function(){
-        CCSE.AppendStatsGeneral('<div class="listing" id="CCktLogButton"><a class="option CCkt" onclick="CCkt.showLog()">Ascension log</a></div>');
-    });
 }
  
 CCkt.showLog = function(){
     // creates the prompt for the ascension log
     var str = '<h3>Ascension log</h3><div class="block">total play time: <span id="CCktTotalTime">'
         + CCkt.formatTime(Date.now() - CCkt.lastT + CCkt.data.totalT)
-        + '</span></div><div><table class="CCkt ascension_log" id="CCktLogTable"><tr><th>Ascension</th><th>HC</th><th>Cookies Baked</th><th>Duration</th><th>Playtime</th></tr>';
+        + '</span></div><div id="CCktTableBox"><table class="CCkt ascension_log" id="CCktLogTable"><tr><th>#</th><th>HC</th><th>Cookies Baked</th><th>Duration</th><th>Playtime</th></tr>';
     if (CCkt.data.ascensions.length) {
         for (i of CCkt.data.ascensions) {
             str += '<tr><td>' + i[0] + '</td><td>' + (typeof(i[1])=='string'?i[1]:'+'+Beautify(i[1])) + '</td><td>'
@@ -132,31 +130,49 @@ CCkt.save = function(){
 
 CCkt.load = function(save){
     CCkt.data = JSON.parse(save);
-}
-
-CCkt.checkSave = function(init){
-    var t = Date.now()
-    
     CCkt.mode = Game.ascensionMode;
     CCkt.legacyCookies = Game.cookiesReset;
     CCkt.startT = Game.startDate;
-    
-    if (!Game.modSaveData.CCkt) {
-        CCkt.data.totalT = 0;
-        CCkt.data.ascensions.length = 0;
-        CCkt.data.curAscension = 0;
-        CCkt.data.resets = Game.resets + 1;
-        if (init) {
-            CCkt.data.totalT = t - CCkt.lastT;
-            CCkt.data.curAscension = t - CCkt.lastT;
+    CCkt.lastT = Date.now();
+    isAscending = 0;
+    if (typeof CCkt.data.f == 'undefined') CCkt.data.f = Game.fullDate;
+    else if (CCkt.data.f != Game.fullDate) CCkt.clearData();
+}
+
+CCkt.clearData = function(){
+    console.log("clear data\n"+Game.modSaveData.CCkt+"\nCCkt.data.f   : "+CCkt.data.f+"\nGame.fullDate: "+Game.fullDate);
+    CCkt.data.totalT = 0;
+    CCkt.data.ascensions.length = 0;
+    CCkt.data.curAscension = 0;
+    CCkt.data.resets = Game.resets + 1;
+    CCkt.data.f = Game.fullDate;
+    CCkt.mode = Game.ascensionMode;
+    CCkt.legacyCookies = Game.cookiesReset;
+    CCkt.startT = Game.startDate;
+}
+
+CCkt.checkAscensionStatus = function(){
+    if (Game.OnAscend) {
+        if (!CCkt.isAscending) {
+            CCkt.isAscending = 1;
+            CCkt.ascend();
         }
-        CCkt.lastT = t;
-    } else if (init) {
-        CCkt.load(Game.modSaveData.CCkt);
-        CCkt.data.totalT = t - CCkt.lastT;
-        CCkt.data.curAscension = t - CCkt.lastT;
-        CCkt.lastT = t;
     }
+}
+
+CCkt.ascend = function(){
+    var t = Date.now() - CCkt.lastT + CCkt.data.curAscension;
+    if (t > 300000) {
+        var pos = CCkt.data.ascensions.push([])-1;
+        CCkt.data.ascensions[pos].push(CCkt.data.resets);
+        CCkt.data.ascensions[pos].push(CCkt.mode?Game.ascensionModes[CCkt.mode.toString()].name
+            :Math.floor(Game.HowMuchPrestige(Game.cookiesReset+(CCkt.isAscending?Game.cookiesEarned:0)))-Math.floor(Game.HowMuchPrestige(CCkt.legacyCookies)));
+        CCkt.data.ascensions[pos].push(CCkt.isAscending?Game.cookiesEarned:(Game.cookiesReset-CCkt.legacyCookies));
+        CCkt.data.ascensions[pos].push(Date.now()-CCkt.startT);
+        CCkt.data.ascensions[pos].push(t);
+    }
+    CCkt.data.totalT += Date.now() - CCkt.lastT;
+    CCkt.lastT = Date.now();
 }
 
 CCkt.reset = function(h){
@@ -166,26 +182,17 @@ CCkt.reset = function(h){
         CCkt.data.ascensions.length = 0;
         CCkt.data.curAscension = 0;
         CCkt.data.resets = 1;
+        CCkt.data.f = Game.fullDate;
         CCkt.mode = Game.ascensionMode;
         CCkt.legacyCookies = 0;
+        CCkt.isAscending = 0;
         CCkt.startT = Game.startDate;
-    } else {
-        // ascension
-        var t = Date.now() - CCkt.lastT + CCkt.data.curAscension;
-        if (t > 300000) {
-            var pos = CCkt.data.ascensions.push([])-1;
-            CCkt.data.ascensions[pos].push(CCkt.data.resets);
-            CCkt.data.ascensions[pos].push(CCkt.mode?Game.ascensionModes[CCkt.mode.toString()].name:Math.floor(Game.HowMuchPrestige(Game.cookiesReset))-Math.floor(Game.HowMuchPrestige(CCkt.legacyCookies)));
-            CCkt.data.ascensions[pos].push(Game.cookiesReset-CCkt.legacyCookies);
-            CCkt.data.ascensions[pos].push(Date.now()-CCkt.startT);
-            CCkt.data.ascensions[pos].push(t);
-        }
-        CCkt.data.totalT += Date.now() - CCkt.lastT;
+        CCkt.lastT = Date.now();
     }
-    CCkt.lastT = Date.now();
 }
 
 CCkt.reincarnate = function(){
+    if (!CCkt.isAscending) CCkt.ascend();
     var t = Date.now();
     CCkt.data.totalT += t - CCkt.lastT;
     CCkt.lastT = t;
@@ -194,16 +201,8 @@ CCkt.reincarnate = function(){
     CCkt.mode = Game.ascensionMode;
     CCkt.legacyCookies = Game.cookiesReset;
     CCkt.startT = Game.startDate;
+    CCkt.isAscending = 0;
 }
 
-if(!CCkt.isLoaded){
-    if(CCSE && CCSE.isLoaded){
-        CCkt.launch();
-    }
-    else{
-        if(!CCSE) var CCSE = {};
-        if(!CCSE.postLoadHooks) CCSE.postLoadHooks = [];
-        CCSE.postLoadHooks.push(CCkt.launch);
-    }
-}
+if(!CCkt.isLoaded) Game.registerMod("CCkt", CCkt);
 
