@@ -32,10 +32,12 @@ if(CCkt === undefined) var CCkt = {
         Game.registerHook('reset', CCkt.reset);
         Game.registerHook('reincarnate', CCkt.reincarnate);
         setInterval(CCkt.checkAscensionStatus, 5000);
-        CCkt.isLoaded = 1;
         
-        if (Game.modSaveData.CCkt) CCkt.load(Game.modSaveData.CCkt);
-        else CCkt.clearData();
+        if (Game.modSaveData.CCkt) {
+            CCkt.load(Game.modSaveData.CCkt);
+            CCkt.backup = Game.modSaveData.CCkt;
+        } else CCkt.clearData();
+        CCkt.isLoaded = 1;
     },
     isLoaded: 0,
     lastT: Date.now(), // timestamp for the last data update
